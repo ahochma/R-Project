@@ -1,0 +1,384 @@
+
+---
+title: "Or & Amit- Coffee Data Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+
+![](https://218zzz2u9z8k37r9ob41kso0-wpengine.netdna-ssl.com/wp-content/uploads/2020/04/Overzicht.png)
+
+
+
+# Introduction
+
+In this research we will concentrate on the coffee ratings data set.
+
+
+The data comes from Coffee Quality Database courtesy of Buzzfeed Data Scientist James LeDoux. 
+
+The original data can be found on James' github.
+
+This dataset contains a lot of interesting information about Coffee ratings such as: species, country of origin, flavor, etc.
+
+We will focus on:
+
+1. Transforming our dataset.
+
+2. Visualizations.
+
+3. Statistical Models and methods learned during the course.
+
+
+Our goals is to demonstrate and practice the different methods that we have learned in the course by examining the relationship between the different variables from the coffee ratings dataset.
+
+In addition we would like to find conclusions that can be used by the home user to make his next coffee more tastier.
+
+For example,It is customary to think that moisture affects the quality of coffee, We will examine this field in our analysis.
+
+
+The methods which we will use in this research are:
+
+1. Hypothesis test.
+
+2. Model of multiple regression
+
+3. Model of simple linear regression
+
+## Part 1 - Importing the data set
+
+The dataset was in an excel file- a convenient format to work with.
+
+lets read this file with read.csv function that imports the data into R
+
+
+
+```{r reading, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library("ggpubr")
+library(janitor)
+library(dplyr)
+library(ggplot2)
+library(ggcorrplot)
+library(broom)
+
+coffee_ratings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-07-07/coffee_ratings.csv')
+coffee_ratings
+
+```
+
+First, we need to get to know our data set.
+
+For this purpose we will look at our data set briefly, with glimpse() function.
+
+``````{r glimpse dataset, message=TRUE, warning=TRUE, echo=TRUE}
+glimpse(coffee_ratings)
+
+```
+## Part 2 - Transformation & Cleaning
+
+First of all, we chose the variables that would interest us for further analysis:
+
+1. Total cup points
+2. Species
+3. Country of origin
+4. Altitude mean meters
+5. Processing method
+6. Moisture
+7. Aroma
+8. Flavor
+9. Body
+
+10.Balance
+
+- We deleted all the lines that contain NA (there is enough information so there is no problem to do so).
+- Once we examined the data we discovered a few things:
+
+  1. Some samples appear to be completely dry from their Moisture values,
+     which seems a bit odd as the majority of samples are not dry.
+     That is why we will remove all those samples.
+
+  2. In the mean altitude variable there are extreme values.
+     That is why we will remove them as well.
+
+The updated data attached:
+
+```{r transforming the dataset, message=TRUE, warning=TRUE, echo=TRUE}
+
+data<-coffee_ratings%>%
+  select(total_cup_points,species,country_of_origin,altitude_mean_meters,processing_method,moisture,aroma,flavor,body,balance)%>%
+  filter(moisture>0,altitude_mean_meters>100,altitude_mean_meters<3600)%>% 
+  drop_na()
+glimpse(data)
+
+```
+
+We now have 836 rows out of 1339 rows, this is enough for our further analysis.
+
+## Part 3 - Visualizations
+
+In this part we will examine our data through different graphs and plot with ggplot2 package.
+
+#### The distributions of different variables:
+
+```{r distributions of diffrenent variables, echo=FALSE, fig.height=4, fig.width=4, message=TRUE, warning=TRUE, paged.print=TRUE}
+bar_species<- ggplot(data) + 
+  geom_bar(mapping = aes(x = species),group = 1,fill="pink", colour="black")+
+  ggtitle("Distribution of Species")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+ # Rotates the X labels
+  xlab("Species")+ylab("Count")
+
+top_10_countries<-data%>% select(country_of_origin)%>% count(country_of_origin)%>%
+  arrange(desc(n))%>%slice(1:10)
+
+col_top_10_countries <-ggplot(top_10_countries) + 
+  geom_col(mapping = aes(x = country_of_origin,y=n),group = 1,fill="green", colour="black")+
+  ggtitle("Top 10 countries")+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1))+ # Rotates the X labels
+  xlab("Countries")+ylab("Count")
+
+procesing_method <- ggplot(data) + 
+  geom_bar(mapping = aes(x=fct_infreq(processing_method)),group = 1,fill="lightblue", colour="black")+
+  ggtitle("Procesing Method")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+ # Rotates the X labels
+  xlab("Procesing method")+ylab("Count")
+
+bar_species
+col_top_10_countries
+procesing_method
+
+```
+
+#### The density of different variables:
+
+
+```{r density of different variables, echo=FALSE, fig.height=4, fig.width=4, message=TRUE, warning=TRUE, paged.print=TRUE}
+
+density_aroma<- ggplot(data)+
+  geom_density(aes(x=aroma),fill="pink",col="white")+
+  ggtitle("Density Plot of Aroma")+
+  xlab("Aroma")+ylab("Density")
+density_aroma
+
+density_moisture<- ggplot(data)+
+  geom_density(aes(x=moisture),fill="firebrick",col="white",adjust=3)+
+  ggtitle("Density Plot of Moisture")+
+  xlab("Moisture")+ylab("Density")
+density_moisture
+
+density_flavor<- ggplot(data)+
+  geom_density(aes(x=flavor),fill="darkorchid",col="white")+
+  ggtitle("Density Plot of Flavor")+
+  xlab("Flavor")+ylab("Density")
+density_flavor
+
+density_body<- ggplot(data)+
+  geom_density(aes(x=body),fill="orange",col="white")+
+  ggtitle("Density Plot of Body")+
+  xlab("Body")+ylab("Density")
+density_body
+
+density_balance<- ggplot(data)+
+  geom_density(aes(x=balance),fill="slateblue1",col="white")+
+  ggtitle("Density Plot of Balance")+
+  xlab("Balance")+ylab("Density")
+density_balance
+
+density_Mean_altitude<- ggplot(data)+
+  geom_density(aes(x=altitude_mean_meters),fill="mediumturquoise",col="white",adjust=2)+
+  ggtitle("Density Plot of Mean altitude")+
+  xlab("Mean altitude")+ylab("Density")
+density_Mean_altitude
+
+```
+
+From the output variables, we can see that:
+
+
+```{undefined include=FALSE}
+data %>% select(moisture)%>%colMeans()
+
+```
+
+1)  a very small number of Robusta beans have been graded
+2)  Coffee is mainly grown between 700 and 2000 m
+3)  Most of the samples have been processed using the Washed / Wet method
+    and the remainder are mostly Natural / Dry.
+4)  Aroma, Flavor, Body, Balance are similarly distributed with mean values
+    around 7.5 and approximate range of 6.5-8.5
+5)  Moisture is distributed with mean value of 0.113  and approximate range of 0.08-0.14.
+
+## Part 4 - Modeling
+
+#### First Model - T-test:
+
+We would like to check if the coffee in Colombia is better than in Brazil.
+
+Lets do the Hypothesis test, We use t-test to determine whether the means of two Types are equal to each other.
+The assumption for the test is that both groups are sampled from normal distributions with equal variances. 
+
+The null hypothesis is that the two means are equal, and the alternative is that one sample is larger than the other.
+
+Colombia and Brazil have the same number of samples so the test will be more reliable.
+
+To perform two-samples t-test comparing the means of two independent samples (x & y), the R function t.test() can be used as follow:
+
+##### H0:μColombia−μBrazil=0
+
+##### H1:μColombia−μBrazil>0
+
+
+```{r t-test, message=TRUE, warning=TRUE, echo=TRUE}
+
+mean_Bra<-data%>%filter(country_of_origin=='Brazil')%>%
+  select(total_cup_points)
+mean_Col<-data%>%filter(country_of_origin=='Colombia')%>%
+  select(total_cup_points)
+
+t.test(mean_Col,mean_Bra,alternative = "greater",conf.level = 0.95)
+
+```
+
+##### What we have discovered from the test:
+
+The p-value of t-test is p = 0.00009768. Its lower than the significance level alpha = 0.05.
+
+In conclusion, it can be assumed that coffee in Colombia is better than coffee in Brazil, at a 95 percent certainty level.
+
+We can also support this due to the confidence interval which results here.
+
+
+#### Second Model -  Multiple regression & Simple linear regression:
+
+
+A Multiple linear regression is now done on the parameters of flavor,body, moisture, balance and aroma.
+
+In order to test the effect of each variable on the coffee rating We will use multiple linear regression model and represent it by the summery table.
+
+```{r multiple regression, message=TRUE, warning=TRUE, echo=TRUE}
+
+model<-lm(total_cup_points~aroma+moisture+balance+body+flavor,data)
+summary(model)
+
+```
+
+What we have discovered from the test:
+
+Based on the data in the table we can see that the most influential variable on the coffee rating is flavor.
+
+When it goes up by one unit the coffee rating goes up by more then 4 units.
+
+What is very interesting about this table is that the moisture is not significant, 
+therefore it is not possible to say with a level of certainty of 95% that there is a linear relationship between moisture and the coffee rating.
+
+We understand this is probably happening because all the samples are at a standard moisture level. 
+
+In addition we see that aroma, body taste and balance are significant variables that affect the coffee rating, each one of them at a different level of significance.
+
+We will now examine a correlation between the variables:
+
+```{r cor, message=TRUE, warning=TRUE, echo=TRUE}
+
+selected_variable <- data %>%select(moisture,aroma,flavor,body,balance)
+cor_variable <- cor(selected_variable)
+ggcorrplot(cor_variable, type = "upper", hc.order = T, hc.method = "complete",
+           colors = c("lightskyblue","white","indianred1"))
+```
+
+We can see that there is a correlation between all our significant variables.
+Therefore, we understand that the variables affects each other, and we can not conclude unequivocally that only one variable
+affects the overall coffee rating.
+
+Lets check the VIF:
+
+```{r VIF, message=TRUE, warning=TRUE, echo=TRUE}
+
+car::vif(model)
+
+```
+
+We can see that the VIF is less than 5 in all of our variables,
+Therefore, according to what we have learned in the course,
+Despite the multicolinearity we can keep all our variables.
+
+We will select the flavor variable, which has the strongest effect (b1 of 4.1) and test it for homoscedasticity.
+
+
+```{r homoscedasticity, message=TRUE, warning=TRUE, echo=TRUE}
+
+model<-lm(total_cup_points~flavor,data)
+model.diag.metrics <- augment(model)
+errors<-model$residuals
+ggplot(model.diag.metrics, aes(flavor, errors)) +
+  geom_point() +
+  stat_smooth(method = lm, se = FALSE) +
+  geom_segment(aes(xend = flavor, yend = errors))
+
+```
+
+Refered to the graph attached above, we can see that the variance of the error is not constant around the X-axis. Therefore, there is no homoscedasticity.
+
+
+Despite the lack of homoscedasticity, we will continue with the data analysis and present the linear relationship between flavor and coffee rating.
+
+```{r linear relationship, echo=FALSE, fig.height=4, fig.width=4, message=FALSE, warning=FALSE}
+linearMod <- lm(total_cup_points~flavor, data=data)
+ggplot(data, aes(x = flavor, y = total_cup_points)) +
+  geom_point() + scale_y_log10() + theme_bw() +
+  stat_smooth(method = "lm") + xlab("Flavor")
+summary(linearMod)
+
+
+```
+
+##### We can see that:
+
+That Multiple R-squared is 0.7138 (very high)
+and that the p-value is p = 0.00009768
+
+Therefore it can be concluded at a 95 percent significance level that there is a strong linear relationship between flavor and total cup point.
+
+
+
+## Part 5 - Conclusion:
+
+We tried to find useful conclusions for the home consumer, so we examined 2 main questions:
+
+1. Is Colombian coffee better than Brazilian coffee?
+
+2. We looked for a relationship between variables and the coffee rating, in order to recommend to the home user a               variable that he should pay attention to, in order to get better coffee.
+
+##### Conclusions:
+
+1. Based on the analyzed data, the coffee produced in Colombia is better than the coffee produced in Brazil.
+
+   So, in case someone is thinking whether to buy Colombian coffee or Brazilian coffee, we recommend going for the Colombian.
+  
+
+2. First, before we looked at the data, we assumed that moisture is a very significant factor influencing the coffee rating.
+
+   We were surprised to find that according to the data, this claim is not true.
+  
+   We assume this happened because all the samples were taken right after the coffee package was opened, so the moisture has    not changed to values that can affect the results.
+   
+   In addition, we showed that flavor is the most significant factor in coffee ranking, and also presented the correlation         between all the significant variables.
+   
+   Therefore we recommend the home consumer to buy a full bodied, good and rich flavor, with strong aroma coffee beans.
+
+
+We hope these conclusions will help you make your next coffee alot better.
+
+#Some coffee + Some thinking = Great ideas!
+
+
+## Thanks for reading!
+
+
+
+
